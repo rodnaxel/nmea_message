@@ -1,0 +1,33 @@
+# Whitelist
+!degaus.json
+
+
+# Blacklist
+# Files and folders Pycharm, Visual Studio, Sublime
+/.idea
+/.vscode
+*.sln
+*.suo
+*.code-workspace
+*.sublime-project
+*.sublime-workspace
+
+# Builder and temporary files
+/build
+/__pycache__
+*.bak
+*.bat
+*.txt
+*.pyc
+*.dat
+
+# Config files
+*.json
+*.ini
+*.spec
+
+
+
+
+
+

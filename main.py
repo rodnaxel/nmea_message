@@ -144,7 +144,7 @@ class Ui(QMainWindow):
         """ Port configuration"""
         wgt = QGroupBox('Настройки порта', self)
         layout = QGridLayout(wgt)
-        layout.setSpacing(1)
+        #layout.setSpacing(1)
 
         # Slots
         def _update_data():
@@ -339,8 +339,8 @@ class UserialMainWindow(Ui):
 
 if __name__ == '__main__':
     
-    #with open(os.path.join(PROJECT_DIR, "degaus.json")) as json_file:
-    #   cfg = json.load(json_file)
+
+
 
     available_ports = model.serial_ports()
 

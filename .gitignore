@@ -14,12 +14,13 @@
 
 # Builder and temporary files
 /build
+/dist
 /__pycache__
 *.bak
-*.bat
 *.txt
 *.pyc
 *.dat
+*.exe
 
 # Config files
 *.json

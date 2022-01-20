@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 import json
+from math import comb
 import os.path
 import sys
 from collections import ChainMap
@@ -12,6 +13,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 import app_rc
+from components import MessageBox
 
 import model
 
@@ -33,6 +35,9 @@ logger = logging.getLogger()
 
 
 class Ui(QMainWindow):
+
+    deviceTypeChanged = QtCore.pyqtSignal()
+
     def __init__(self):
         super().__init__()
 
@@ -42,9 +47,15 @@ class Ui(QMainWindow):
 
         self.createUI()
 
-        self.settings = dict(ChainMap(self.portbox_data, self.message_data))
+        #self.settings = dict(ChainMap(self.portbox_data, self.message_data))
+        self.settings = dict(ChainMap(self.portbox_data, self.messagebox.get_param()))
 
         self.transmitter = model.Transmitter()
+
+
+        # Connect signal/slots
+
+        self.deviceTypeChanged.connect(lambda: print("device type changed"))
 
     def _center(self):
         """ This method aligned main window related center screen """
@@ -64,12 +75,13 @@ class Ui(QMainWindow):
 
 
         # Create widgets
-
         self.control = self.createButtons()
+        self.deviceType = self.createDeviceType()
         self.portbox = self.createPortbox()
 
         message_group = QGroupBox("Настройка сообщения", self)
-        self.messagebox = self.createMessageBox()
+        #self.messagebox = self.createMessageBox()
+        self.messagebox = MessageBox()
 
         term_wgt = self.createTerminal()
 
@@ -78,6 +90,7 @@ class Ui(QMainWindow):
         # Layouts
         centralLayout = QVBoxLayout(centralWgt)
         centralLayout.addWidget(self.control)
+        centralLayout.addWidget(self.deviceType)
         settingsLayout = QHBoxLayout()
         settingsLayout.addWidget(self.portbox)
 
@@ -140,6 +153,22 @@ class Ui(QMainWindow):
             self.buttons[key] = button
         return wgt
 
+    def createDeviceType(self):
+        wgt = QWidget()
+        layout = QHBoxLayout(wgt) 
+
+        combo = QComboBox()
+        combo.setObjectName("deviceType")
+        combo.setFixedWidth(120)
+        combo.addItems(("Репитер КФ1", "Репитер НЭЛ"))
+        
+        layout.addWidget(QLabel(f"Тип устройства: "))
+        layout.addWidget(combo)
+
+        combo.currentTextChanged['QString'].connect(self.deviceTypeChanged)
+        
+        return wgt
+
     def createPortbox(self):
         """ Port configuration"""
         wgt = QGroupBox('Настройки порта', self)
@@ -149,7 +178,8 @@ class Ui(QMainWindow):
         # Slots
         def _update_data():
             self.portbox_data = {"port": wgt.findChild(QComboBox, "port").currentText(),
-                                 "baudrate": int(wgt.findChild(QComboBox, "baudrate").currentText())
+                                 "baudrate": int(wgt.findChild(QComboBox, "baudrate").currentText()),
+                                 "interval": int(wgt.findChild(QComboBox, "interval").currentText())
                                  }
 
         def _on_find_ports():
@@ -165,7 +195,8 @@ class Ui(QMainWindow):
             ('baudrate', 'скорость', ['4800', '9600', '19200', '38400', '57600', '115200']),
             ('bytesize', 'биты данных', ['5', '6', '7', '8']),
             ('parity', 'четность', ['N']),
-            ('stopbits', 'стоп', ['1', '1.5', '2'])
+            ('stopbits', 'стоп', ['1', '1.5', '2']),
+            ('interval', 'темп, мс', ['100', '500', '1000', '2000'])
         ):
             combo = QComboBox()
             combo.setObjectName(key)
@@ -289,10 +320,7 @@ class Ui(QMainWindow):
         data = self.read_settings()[1]
 
         message = model.SonarMessage(self.read_settings()[1])
-        print(message)
-
         msg_bytes = message.to_bytes()
-        print(msg_bytes)
         self.transmitter.send(msg_bytes)
 
         msg_ascii = message.to_ascii()
@@ -338,10 +366,6 @@ class UserialMainWindow(Ui):
 
 
 if __name__ == '__main__':
-    
-
-
-
     available_ports = model.serial_ports()
 
     app = QApplication(sys.argv)

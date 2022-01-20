@@ -83,6 +83,7 @@ class SonarMessage(Message):
         self._message = self.START + ','.join(self.fields.values()) + self.checksum(data) + self.END
 
 
+
 class Transmitter:
     def configure(self, settings):
         self._settings = settings

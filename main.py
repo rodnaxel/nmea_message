@@ -17,8 +17,9 @@ from components import OptionBox
 
 import model
 
+
 __title__ = "Генератор сообщений NMEA-0183"
-__version__ = "0.1.0"
+__version__ = "1.0.0"
 __author__ = "Александр Смирнов"    
 
 
@@ -49,14 +50,14 @@ class Ui(QMainWindow):
 
         self.transmitter = model.Transmitter()
 
-    def onChangeStackIndex(self):
-        index = self.stack.currentIndex() + 1
-        if index > self.stack.count() - 1:
-            index = 0
-        self.stack.setCurrentIndex(index)
+    def on_change_device(self):
+        next_index = self.stack.currentIndex() + 1
+        if next_index > (self.stack.count() - 1):
+            next_index = 0
+        self.stack.setCurrentIndex(next_index)
 
         # 0 - КФ1, 1 - НЭЛ1000
-        self.mode = index
+        self.mode = next_index
 
     def _center(self):
         """ This method aligned main window related center screen """
@@ -76,7 +77,7 @@ class Ui(QMainWindow):
 
         # Create widgets
         self.control = self.createButtons()
-        self.deviceType = self.createDeviceType()
+        self.deviceType = self.createDeviceBox()
         self.portbox = self.createPortbox()
 
         # Widget params of message
@@ -93,7 +94,7 @@ class Ui(QMainWindow):
         self.sonarBox = OptionBox(fields=(
             ('id', 'индефикатор', ['SDDBT']),
             ('depth', 'глубина, М', (0.0, 9999.9)),
-            ('danger', 'Оп. глубина, М', (0.0, 99.0)),
+            ('danger', 'Оп. глубина, М', (0, 99)),
             ('accuracy', 'Исправность', ('V', 'A'))
             )
         )
@@ -106,7 +107,6 @@ class Ui(QMainWindow):
 
         # Layouts
         centralLayout = QVBoxLayout(centralWgt)
-        centralLayout.addWidget(self.control)
         centralLayout.addWidget(self.deviceType)
         settingsLayout = QHBoxLayout()
         settingsLayout.addWidget(self.portbox)
@@ -117,6 +117,7 @@ class Ui(QMainWindow):
         settingsLayout.addWidget(message_group)
         centralLayout.addLayout(settingsLayout)
         centralLayout.addWidget(term_wgt)
+        centralLayout.addWidget(self.control)
 
         self._center()
 
@@ -170,7 +171,7 @@ class Ui(QMainWindow):
             self.buttons[key] = button
         return wgt
 
-    def createDeviceType(self):
+    def createDeviceBox(self):
         wgt = QWidget()
         layout = QHBoxLayout(wgt) 
 
@@ -182,7 +183,7 @@ class Ui(QMainWindow):
         layout.addWidget(QLabel("Тип устройства: "))
         layout.addWidget(combo)
 
-        combo.currentTextChanged['QString'].connect(self.onChangeStackIndex)
+        combo.currentTextChanged['QString'].connect(self.on_change_device)
         
         return wgt
 
@@ -192,16 +193,17 @@ class Ui(QMainWindow):
         layout = QGridLayout(wgt)
 
         # Slots
-        def _update_data():
-            self.portbox_data = {"port": wgt.findChild(QComboBox, "port").currentText(),
-                                 "baudrate": int(wgt.findChild(QComboBox, "baudrate").currentText()),
-                                 "interval": int(wgt.findChild(QComboBox, "interval").currentText())
-                                 }
+        def _on_update_settings():
+            self.portbox_data = {
+                "port": wgt.findChild(QComboBox, "port").currentText(),
+                "baudrate": int(wgt.findChild(QComboBox, "baudrate").currentText()),
+                "interval": int(wgt.findChild(QComboBox, "interval").currentText())
+            }
 
         def _on_find_ports():
             port = wgt.findChild(QComboBox, "port")
             port.clear()
-            port.addItems(model.serial_ports())
+            port.addItems(model.find_ports())
             if not port.isEnabled():
                 port.setEnabled(True)
 
@@ -212,7 +214,7 @@ class Ui(QMainWindow):
             ('bytesize', 'биты данных', ['5', '6', '7', '8']),
             ('parity', 'четность', ['N']),
             ('stopbits', 'стоп', ['1', '1.5', '2']),
-            ('interval', 'темп, мс', ['100', '500', '1000', '2000'])
+            ('interval', 'темп, мс', ['1000'])
         ):
             combo = QComboBox()
             combo.setObjectName(key)
@@ -223,7 +225,7 @@ class Ui(QMainWindow):
             else:
                 combo.setDisabled(True)
 
-            combo.currentTextChanged['QString'].connect(_update_data)
+            combo.currentTextChanged['QString'].connect(_on_update_settings)
 
             layout.addWidget(QLabel(f"{name.capitalize()}:"), row, 0)
             layout.addWidget(combo, row, 1)
@@ -237,7 +239,7 @@ class Ui(QMainWindow):
         # Connect signal/slot
         btnRescan.clicked.connect(_on_find_ports)
 
-        _update_data()
+        _on_update_settings()
 
         return wgt
 
@@ -332,7 +334,8 @@ class UserialMainWindow(Ui):
 
 
 if __name__ == '__main__':
-    available_ports = model.serial_ports()
+    available_ports = model.find_ports()
+
 
     app = QApplication(sys.argv)
 
@@ -344,6 +347,5 @@ if __name__ == '__main__':
         app.setWindowIcon(QIcon(':/rc/Interdit.ico'))
 
     ex = UserialMainWindow()
-
 
     sys.exit(app.exec_())

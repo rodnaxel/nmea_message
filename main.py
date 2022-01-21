@@ -113,6 +113,7 @@ class Ui(QMainWindow):
 
         message_layout = QHBoxLayout(message_group)
         message_layout.addLayout(self.stack)
+        message_layout.setContentsMargins(0,0,0,0)
 
         settingsLayout.addWidget(message_group)
         centralLayout.addLayout(settingsLayout)

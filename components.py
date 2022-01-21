@@ -8,7 +8,6 @@ class OptionBox(QWidget):
         super().__init__(parent)
 
         self.fields = fields
-
         self.setLayout(QGridLayout(self))
 
         self.create_widget()
@@ -41,6 +40,9 @@ class OptionBox(QWidget):
             self.layout().addWidget(w, row, 1)
             
             row += 1
+
+        # Add emty space to widget
+        self.layout().setRowStretch(self.layout().rowCount(), 2)
 
     def update_params(self):
         self.params = {} 

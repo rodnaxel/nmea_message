@@ -36,33 +36,27 @@ logger = logging.getLogger()
 
 class Ui(QMainWindow):
 
-    deviceTypeChanged = QtCore.pyqtSignal()
-
     def __init__(self):
         super().__init__()
 
         self.timer_id = 0
         self.isBlink = False
         self.status = {}
+        
+        self.mode = 0
 
         self.createUI()
 
-        #self.settings = dict(ChainMap(self.portbox_data, self.message_data))
-        self.settings = dict(ChainMap(self.portbox_data, self.compassBox.get_param()))
-
         self.transmitter = model.Transmitter()
 
-
-        # Connect signal/slots
-
-        self.deviceTypeChanged.connect(self._changeStackIndex)
-
-    def _changeStackIndex(self):
+    def onChangeStackIndex(self):
         index = self.stack.currentIndex() + 1
         if index > self.stack.count() - 1:
             index = 0
-        print(index, self.stack.count())
         self.stack.setCurrentIndex(index)
+
+        # 0 - КФ1, 1 - НЭЛ1000
+        self.mode = index
 
     def _center(self):
         """ This method aligned main window related center screen """
@@ -85,20 +79,26 @@ class Ui(QMainWindow):
         self.deviceType = self.createDeviceType()
         self.portbox = self.createPortbox()
 
-        message_group = QGroupBox("Настройка сообщения", self)
+        # Widget params of message
+        message_group = QGroupBox("Параметры сообщения:", self)
         self.stack = QStackedLayout()
-
-        self.sonarBox = self.createMessageBox()
-        self.stack.addWidget(self.sonarBox)
 
         self.compassBox = OptionBox(fields=( 
             ('id', 'индефикатор', ['HCHDT']),
-            ('interval', 'темп, мс', ['100', '500', '1000', '2000']),
             ('heading', 'курс, град.', (0.0, 359.9)),
             ('power', 'питание', ['T', 'N'])
         ))
         self.stack.addWidget(self.compassBox)
-    
+
+        self.sonarBox = OptionBox(fields=(
+            ('id', 'индефикатор', ['SDDBT']),
+            ('depth', 'глубина, М', (0.0, 9999.9)),
+            ('danger', 'Оп. глубина, М', (0.0, 99.0)),
+            ('accuracy', 'Исправность', ('V', 'A'))
+            )
+        )
+        self.stack.addWidget(self.sonarBox)
+        self.stack.setCurrentIndex(0)
 
         term_wgt = self.createTerminal()
 
@@ -112,7 +112,6 @@ class Ui(QMainWindow):
         settingsLayout.addWidget(self.portbox)
 
         message_layout = QHBoxLayout(message_group)
-        #message_layout.addWidget(self.messagebox)
         message_layout.addLayout(self.stack)
 
         settingsLayout.addWidget(message_group)
@@ -183,7 +182,7 @@ class Ui(QMainWindow):
         layout.addWidget(QLabel("Тип устройства: "))
         layout.addWidget(combo)
 
-        combo.currentTextChanged['QString'].connect(self.deviceTypeChanged)
+        combo.currentTextChanged['QString'].connect(self.onChangeStackIndex)
         
         return wgt
 
@@ -242,68 +241,7 @@ class Ui(QMainWindow):
 
         return wgt
 
-    def createMessageBox(self):
-        """ Create message configuration"""
-        wgt = QWidget()
-        layout = QGridLayout(wgt)
-
-        # Slots
-        def _update_data():
-            self.message_data = {
-                'id': wgt.findChild(QComboBox, "id").currentText(),
-                'interval': wgt.findChild(QComboBox, "interval").currentText(),
-                'depth': round(wgt.findChild(QDoubleSpinBox, "depth").value(), 2),
-                'danger': wgt.findChild(QSpinBox, "danger").value(),
-                'accuracy': wgt.findChild(QComboBox, "accuracy").currentText()
-            }
-
-        row = 0
-        for key, name, items in (
-            ('id', 'индефикатор', ['SDDBT']),
-            ('interval', 'темп, мс', ['100', '500', '1000', '2000']),
-            ('depth', 'глубина, М', (0, 9999.9)),
-            ('danger', 'Оп. глубина, М', (0, 99)),
-            ('accuracy', 'Исправность', ('V', 'A'))
-        ):
-
-            if key in ('id', 'interval', 'accuracy'):
-                w = QComboBox()
-                w.setObjectName(key)
-                w.setFixedWidth(60)
-                w.addItems(items)
-                w.currentTextChanged['QString'].connect(_update_data)
-            else:
-                if key in ['depth']:
-                    w = QDoubleSpinBox()
-                    w.setDecimals(1)
-                    w.setSingleStep(0.1)
-                else:
-                    w = QSpinBox()
-                    w.setSingleStep(1)
-                w.setObjectName(key)
-                w.setRange(*items)
-                w.setFixedWidth(60)
-                w.valueChanged.connect(_update_data)
-
-            layout.addWidget(QLabel(f"{name.capitalize()}:"), row, 0)
-            layout.addWidget(w, row, 1)
-            row += 1
-
-        _update_data()
-
-        return wgt
-
     def createStatusbar(self):
-        '''
-        for (key, text) in (
-                ['tx', 'сообщений'],
-        ):
-            wgt = QLabel(' {}: {}'.format(text, 0))
-            wgt.setFixedWidth(90)
-            stretch = 2 if key == 'er' else 0
-            self.statusBar().addPermanentWidget(wgt, stretch)
-            self.status[key] = wgt
-        '''
         pix = QLabel()
         self.statusBar().addPermanentWidget(pix)
         self.status['pixmap'] = pix
@@ -312,10 +250,10 @@ class Ui(QMainWindow):
     def _on_start(self):
         self._lock(True)
 
-        stg = self.read_settings()[0]
-        self.transmitter.configure(stg)
+        stg = self.read_settings()
+        self.transmitter.configure(stg['port'])
 
-        interval_ms = int(self.message_data['interval'])
+        interval_ms = int(stg['port']['interval'])
         self.timer_id = self.startTimer(interval_ms, timerType=QtCore.Qt.PreciseTimer)
 
     def _on_stop(self):
@@ -334,24 +272,35 @@ class Ui(QMainWindow):
         self._on_quit()
 
     def timerEvent(self, event):
-        data = self.read_settings()[1]
+        data = self.read_settings()['message']
 
-        message = model.SonarMessage(self.read_settings()[1])
+        if self.mode == 0:
+            message = model.CompassMessage(data)
+        elif self.mode == 1:
+            message = model.SonarMessage(data)
+
+        # send message to serial
         msg_bytes = message.to_bytes()
         self.transmitter.send(msg_bytes)
 
+        # send message to terminal
         msg_ascii = message.to_ascii()
         self.terminal.append(msg_ascii)
 
+        # update status
         self.blinkPixmap()
 
     def _lock(self, is_lock):
         self.portbox.setDisabled(is_lock)
+        self.deviceType.setDisabled(is_lock)
         self.buttons['start'].setDisabled(is_lock)
         self.buttons['stop'].setEnabled(is_lock)
 
     def read_settings(self):
-        return self.portbox_data, self.message_data
+        settings = {}
+        settings['message'] = self.stack.currentWidget().get_param()
+        settings['port'] = self.portbox_data
+        return settings
 
     def blinkPixmap(self):
         if self.isBlink:

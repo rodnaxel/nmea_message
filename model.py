@@ -46,6 +46,12 @@ class Message:
 
     def __repr__(self):
         return "{} {}".format(self.__class__.__name__, str(self.__dict__['fields']))
+   
+    def to_bytes(self):
+        return b''.join([char.encode() for char in self._message])
+
+    def to_ascii(self, without_end=True):
+        return self._message.rstrip('\r\n') if without_end else self._message
 
     def checksum(self, data):
         return ',*23'
@@ -64,19 +70,34 @@ class SonarMessage(Message):
 
         self._create(self._data)
 
-    def to_bytes(self):
-        return b''.join([char.encode() for char in self._message])
-
-    def to_ascii(self, without_end=True):
-        return self._message.rstrip('\r\n') if without_end else self._message
-
     def _create(self, param):
         data = param.copy()
+
+        print(data['depth'])
 
         data['depth'] = str(round(data['depth'], 2)).zfill(6)
         data['danger'] = str(round(data['danger'], 2)).zfill(2)
         data['depth unit'] = 'M'
         data['danger unit'] = 'M'
+
+        self.fields.update(data)
+
+        self._message = self.START + ','.join(self.fields.values()) + self.checksum(data) + self.END
+
+class CompassMessage(Message):
+    def __init__(self, data):
+        self.fields = dict.fromkeys(
+            ('id','heading', 'power')
+        )
+
+        self._data = {key:data[key] for key in (data.keys() & self.fields.keys())}
+
+        self._create(self._data)
+
+    def _create(self, param):
+        data = param.copy()
+
+        data['heading'] = str(round(data['heading'], 1)).zfill(5)
 
         self.fields.update(data)
 

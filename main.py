@@ -13,7 +13,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 import app_rc
-from components import MessageBox
+from components import OptionBox
 
 import model
 
@@ -48,14 +48,21 @@ class Ui(QMainWindow):
         self.createUI()
 
         #self.settings = dict(ChainMap(self.portbox_data, self.message_data))
-        self.settings = dict(ChainMap(self.portbox_data, self.messagebox.get_param()))
+        self.settings = dict(ChainMap(self.portbox_data, self.compassBox.get_param()))
 
         self.transmitter = model.Transmitter()
 
 
         # Connect signal/slots
 
-        self.deviceTypeChanged.connect(lambda: print("device type changed"))
+        self.deviceTypeChanged.connect(self._changeStackIndex)
+
+    def _changeStackIndex(self):
+        index = self.stack.currentIndex() + 1
+        if index > self.stack.count() - 1:
+            index = 0
+        print(index, self.stack.count())
+        self.stack.setCurrentIndex(index)
 
     def _center(self):
         """ This method aligned main window related center screen """
@@ -73,15 +80,25 @@ class Ui(QMainWindow):
         centralWgt = QWidget(self)
         self.setCentralWidget(centralWgt)
 
-
         # Create widgets
         self.control = self.createButtons()
         self.deviceType = self.createDeviceType()
         self.portbox = self.createPortbox()
 
         message_group = QGroupBox("Настройка сообщения", self)
-        #self.messagebox = self.createMessageBox()
-        self.messagebox = MessageBox()
+        self.stack = QStackedLayout()
+
+        self.sonarBox = self.createMessageBox()
+        self.stack.addWidget(self.sonarBox)
+
+        self.compassBox = OptionBox(fields=( 
+            ('id', 'индефикатор', ['HCHDT']),
+            ('interval', 'темп, мс', ['100', '500', '1000', '2000']),
+            ('heading', 'курс, град.', (0.0, 359.9)),
+            ('power', 'питание', ['T', 'N'])
+        ))
+        self.stack.addWidget(self.compassBox)
+    
 
         term_wgt = self.createTerminal()
 
@@ -95,7 +112,8 @@ class Ui(QMainWindow):
         settingsLayout.addWidget(self.portbox)
 
         message_layout = QHBoxLayout(message_group)
-        message_layout.addWidget(self.messagebox)
+        #message_layout.addWidget(self.messagebox)
+        message_layout.addLayout(self.stack)
 
         settingsLayout.addWidget(message_group)
         centralLayout.addLayout(settingsLayout)
@@ -162,7 +180,7 @@ class Ui(QMainWindow):
         combo.setFixedWidth(120)
         combo.addItems(("Репитер КФ1", "Репитер НЭЛ"))
         
-        layout.addWidget(QLabel(f"Тип устройства: "))
+        layout.addWidget(QLabel("Тип устройства: "))
         layout.addWidget(combo)
 
         combo.currentTextChanged['QString'].connect(self.deviceTypeChanged)
@@ -173,7 +191,6 @@ class Ui(QMainWindow):
         """ Port configuration"""
         wgt = QGroupBox('Настройки порта', self)
         layout = QGridLayout(wgt)
-        #layout.setSpacing(1)
 
         # Slots
         def _update_data():

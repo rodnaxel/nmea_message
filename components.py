@@ -3,41 +3,54 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 
-class MessageBox(QWidget):
-    def __init__(self, parent=None):
+compass_fields = ( 
+    ('id', 'индефикатор', ['HCHDT']),
+    ('interval', 'темп, мс', ['100', '500', '1000', '2000']),
+    ('heading', 'курс, град.', (0.0, 359.9)),
+    ('power', 'питание', ['T', 'N'])
+)
+
+sonar_fields = (
+    ('id', 'индефикатор', ['SDDBT']),
+    ('interval', 'темп, мс', ['100', '500', '1000', '2000']),
+    ('depth', 'глубина, М', (0, 9999.9)),
+    ('danger', 'Оп. глубина, М', (0, 99)),
+    ('accuracy', 'Исправность', ('V', 'A'))
+)
+
+class OptionBox(QWidget):
+    def __init__(self, fields, parent=None):
         super().__init__(parent)
 
-        self.fields = (
-            ('id', 'индефикатор', ['HCHDT']),
-            ('interval', 'темп, мс', ['100', '500', '1000', '2000']),
-            ('heading', 'курс, град.', (0, 359.9)),
-            ('power', 'питание', ('T', 'N'))
-        )
-        self.create_() 
+        self.fields = fields
 
-    def create_(self):
-        self.layout = layout = QGridLayout(self)
+        self.create_widget() 
 
-        row = 0
+    def create_widget(self):
+        self.layout = QGridLayout(self)
+
+        row = 0 
         for key, name, items in self.fields:
-            if key in ('id', 'interval', 'power'):
-                w = QComboBox()
-                w.setObjectName(key)
-                w.setFixedWidth(60)
-                w.addItems(items)
-                #w.currentTextChanged['QString'].connect(_update_data)
-            else:
-                if key in ['heading']:
+            if isinstance(items, (list, tuple)):
+                if isinstance(items[0], str):
+                    w = QComboBox()
+                    w.setObjectName(key)
+                    w.setFixedWidth(60)
+                    w.addItems(items)
+                elif isinstance(items[0], float):
                     w = QDoubleSpinBox()
                     w.setDecimals(1)
                     w.setSingleStep(0.1)
+                    w.setRange(*items)  
                 else:
                     w = QSpinBox()
                     w.setSingleStep(1)
+                    w.setRange(*items)
+
                 w.setObjectName(key)
-                w.setRange(*items)
                 w.setFixedWidth(60)
-                #w.valueChanged.connect(_update_data)
+            else:
+                raise ValueError()
 
             self.layout.addWidget(QLabel(f"{name.capitalize()}:"), row, 0)
             self.layout.addWidget(w, row, 1)
@@ -61,6 +74,7 @@ def createMessageBox(self):
         def _update_data():
             self.message_data = {
                 'id': wgt.findChild(QComboBox, "id").currentText(),
+
                 'interval': wgt.findChild(QComboBox, "interval").currentText(),
                 'depth': round(wgt.findChild(QDoubleSpinBox, "depth").value(), 2),
                 'danger': wgt.findChild(QSpinBox, "danger").value(),

@@ -66,8 +66,8 @@ class CompassMessage(NMEASentences):
         self._data = {key:data[key] for key in (data.keys() & self.fields.keys())}
 
         # Formatting input data
-        self.data['heading'] = str(round(self.data['heading'], 1)).zfill(5)
-        self.fields.update(data)
+        self._data['heading'] = str(round(self._data['heading'], 1)).zfill(5)
+        self.fields.update(self._data)
 
         self._create_message()
 

@@ -50,15 +50,6 @@ class Ui(QMainWindow):
 
         self.transmitter = model.Transmitter()
 
-    def on_change_device(self):
-        next_index = self.stack.currentIndex() + 1
-        if next_index > (self.stack.count() - 1):
-            next_index = 0
-        self.stack.setCurrentIndex(next_index)
-
-        # 0 - КФ1, 1 - НЭЛ1000
-        self.mode = next_index
-
     def _center(self):
         """ This method aligned main window related center screen """
         frameGm = self.frameGeometry()
@@ -255,10 +246,10 @@ class Ui(QMainWindow):
     def _on_start(self):
         self._lock(True)
 
-        stg = self.read_settings()
-        self.transmitter.configure(stg['port'])
+        stg = self.get_port_settings()
+        self.transmitter.configure(stg)
 
-        interval_ms = int(stg['port']['interval'])
+        interval_ms = int(stg['interval'])
         self.timer_id = self.startTimer(interval_ms, timerType=QtCore.Qt.PreciseTimer)
 
     def _on_stop(self):
@@ -277,7 +268,7 @@ class Ui(QMainWindow):
         self._on_quit()
 
     def timerEvent(self, event):
-        data = self.read_settings()['message']
+        data = self.get_message_settings()
 
         if self.mode == 0:
             message = model.CompassMessage(data)
@@ -300,12 +291,6 @@ class Ui(QMainWindow):
         self.deviceType.setDisabled(is_lock)
         self.buttons['start'].setDisabled(is_lock)
         self.buttons['stop'].setEnabled(is_lock)
-
-    def read_settings(self):
-        settings = {}
-        settings['message'] = self.stack.currentWidget().get_param()
-        settings['port'] = self.portbox_data
-        return settings
 
     def blinkPixmap(self):
         if self.isBlink:
@@ -331,6 +316,20 @@ class Ui(QMainWindow):
     def updateStatus(self, key, value):
         self.status[key].setText(' {}: {}'.format('отп', value))
 
+    def on_change_device(self):
+        next_index = self.stack.currentIndex() + 1
+        if next_index > (self.stack.count() - 1):
+            next_index = 0
+        self.stack.setCurrentIndex(next_index)
+
+        # 0 - КФ1, 1 - НЭЛ1000
+        self.mode = next_index
+
+    def get_port_settings(self):
+        return self.portbox_data
+
+    def get_message_settings(self):
+        return self.stack.currentWidget().get_param()
 
 class UserialMainWindow(Ui):
     pass

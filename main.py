@@ -168,6 +168,8 @@ class Ui(QMainWindow):
 
             layout.addWidget(button)
             layout.setSpacing(1)
+            if key == 'stop':
+                layout.addStretch(2)
 
             self.buttons[key] = button
         return wgt

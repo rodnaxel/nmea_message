@@ -1,20 +1,6 @@
 # -*- coding: utf-8 -*-
 
-
-from functools import reduce
-import operator
-import sys
-import glob
-
-import serial
-import serial.tools.list_ports as tools
-
-
-def find_ports():
-    return [info.device for info in tools.comports()]
-
-def checksum(message):
-    return reduce(operator.xor, map(ord, message), 0)
+from ioserial import checksum
 
 
 class NMEASentences(object):
@@ -36,7 +22,7 @@ class NMEASentences(object):
 
 
 class SonarMessage(NMEASentences):
-    def __init__(self, data):
+    def __init__(self, data: dict):
         self.fields = dict.fromkeys(['id',
                                      'field1', 'field2',
                                      'depth', 'depth unit',
@@ -44,7 +30,8 @@ class SonarMessage(NMEASentences):
                                      'accuracy'], '')
 
         # Delete unnecessary key from data dictionary
-        self._data = {key:data[key] for key in (data.keys() & self.fields.keys())}
+        necessary_keys = self.fields.keys() & data.keys()
+        self._data = {key: data[key] for key in necessary_keys}
         
         # Formatting input data
         self._data['depth'] = str(round(self._data['depth'], 2)).zfill(6)
@@ -71,14 +58,4 @@ class CompassMessage(NMEASentences):
 
         self._create_message()
 
-
-class Transmitter:
-    def configure(self, settings):
-        self._settings = settings
-
-    def send(self, message: bytes):
-        with serial.Serial(port=self._settings['port'],
-                           baudrate=self._settings['baudrate'],
-                           timeout=0.1) as serobj:
-            serobj.write(message)
 

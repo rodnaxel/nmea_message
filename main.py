@@ -1,10 +1,7 @@
 # -*- coding: utf-8 -*-
 
-import json
-from math import comb
 import os.path
 import sys
-from collections import ChainMap
 
 import logging
 
@@ -12,8 +9,8 @@ from PyQt5 import QtCore
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-import app_rc
-from components import OptionBox
+import ioserial
+from ui.components import OptionBox
 
 import model
 
@@ -48,7 +45,7 @@ class Ui(QMainWindow):
 
         self.createUI()
 
-        self.transmitter = model.Transmitter()
+        self.transmitter = ioserial.SerialPort()
 
     def _center(self):
         """ This method aligned main window related center screen """
@@ -148,20 +145,15 @@ class Ui(QMainWindow):
             button = QPushButton(name.capitalize())
             button.setEnabled(enabled)
             button.setFixedSize(80, 25)
-            
-            if icon: 
-                button.setIcon(QIcon(icon))
-            
+            button.setIcon(QIcon(icon))
             button.setStyleSheet("text-align: left")
-            
-            if action:
-                button.clicked.connect(action)
 
             layout.addWidget(button)
             layout.setSpacing(1)
             if key == 'stop':
                 layout.addStretch(2)
 
+            button.clicked.connect(action)
             self.buttons[key] = button
         return wgt
 
@@ -197,7 +189,9 @@ class Ui(QMainWindow):
         def _on_find_ports():
             port = wgt.findChild(QComboBox, "port")
             port.clear()
-            port.addItems(model.find_ports())
+            available = ioserial.find_ports()
+            print(available)
+            port.addItems(ioserial.find_ports())
             if not port.isEnabled():
                 port.setEnabled(True)
 
@@ -336,7 +330,7 @@ class UserialMainWindow(Ui):
 
 
 if __name__ == '__main__':
-    available_ports = model.find_ports()
+    available_ports = ioserial.find_ports()
 
 
     app = QApplication(sys.argv)

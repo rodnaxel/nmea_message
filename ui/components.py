@@ -1,6 +1,8 @@
 from PyQt5 import QtCore
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
+from PyQt5.QtWidgets import QWidget
 
 
 class OptionBox(QWidget):
@@ -65,3 +67,32 @@ class OptionBox(QWidget):
     def get_param(self):
         self.update_params()
         return self.params
+
+
+class Terminal(QWidget):
+    def __init__(self, parent: QWidget | None ) -> None:
+        super().__init__(parent)
+        self._createUi()
+
+    def append(self, value: str):
+        print(f"append {value}")
+
+    def clear(self):
+        print(f"on clear")
+
+    def _createUi(self):
+        self.listview = QListView()
+        self.listview.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.listview.setSelectionMode(QAbstractItemView.NoSelection)
+        self.listview.setFocusPolicy(QtCore.Qt.NoFocus)
+
+        btn = QPushButton('Очистить')
+        btn.setFixedWidth(60)
+        btn.clicked.connect(self.clear)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0,0,0,0)
+        layout.addWidget(self.listview)
+        layout.addWidget(btn)
+
+    

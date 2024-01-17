@@ -4,14 +4,14 @@ from ioserial import checksum
 
 
 class BaseSentence(object):
-    def encode(self):
-        pass
+    def to_bytes(self):
+        raise NotImplementedError
 
-    def decode(self):
-        pass
+    def to_ascii(self):
+        raise NotImplementedError
 
 
-class NMEASentences(object):
+class NMEASentences(BaseSentence):
     START = '$'
     END = '\r\n'
 
@@ -30,13 +30,14 @@ class NMEASentences(object):
 
 
 class SonarMessage(NMEASentences):
-    def __init__(self, data: dict):
-        self.fields = dict.fromkeys(['id',
-                                     'field1', 'field2',
-                                     'depth', 'depth unit',
-                                     'danger', 'danger unit',
-                                     'accuracy'], '')
+    """ Class described NMEA message from PUI to user/repiter """
+    fields = dict.fromkeys(['id',
+                            'field1', 'field2',
+                            'depth', 'depth unit',
+                            'danger', 'danger unit',
+                            'accuracy'], '')
 
+    def __init__(self, data: dict):
         # Delete unnecessary key from data dictionary
         necessary_keys = self.fields.keys() & data.keys()
         self._data = {key: data[key] for key in necessary_keys}
@@ -54,21 +55,21 @@ class SonarMessage(NMEASentences):
 
 
 class CompassMessage(NMEASentences):
-    def __init__(self, data):
-        self.fields = dict.fromkeys(
-            ('id', 'heading', 'power')
-        )
+    """ Class described NMEA message from compass to user/repiter """
+    fields = dict.fromkeys(
+        ('id', 'heading', 'power')
+    )
 
+    def __init__(self, data):
         # Delete unnecessary key from data dictionary
-        self._data = {key: data[key] for key in (data.keys() & self.fields.keys())}
+        necessary_keys = self.fields.keys() & data.keys()
+        self._data = {key: data[key] for key in necessary_keys}
 
         # Formatting input data
         self._data['heading'] = str(round(self._data['heading'], 1)).zfill(5)
         self.fields.update(self._data)
 
         self._create_message()
-
-
 
 
 def kang2dec(kang, signed=True):
@@ -92,9 +93,11 @@ class HMRSentences(BaseSentence):
     SOP2 = bytes.fromhex("0a")
     SOP3 = bytes.fromhex("7e")
 
+
 class HMRDorient(HMRSentences):
     MID = bytes.fromhex("70")
     LENGTH = (18).to_bytes(1, byteorder='little')
+
     def __init__(self, data: dict):
         self._data = data
 

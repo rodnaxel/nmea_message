@@ -10,7 +10,7 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 import ioserial
-from ui.components import OptionBox
+from ui.components import OptionBox, Terminal
 
 import model
 from message_desc import messages
@@ -77,10 +77,12 @@ class Ui(QMainWindow):
             self.stack.addWidget(box)
         self.stack.setCurrentIndex(0)
 
-        terminalWgt = self.createTerminal()
+        le = QLineEdit()
+
+        terminal = self.createTerminal()      
 
         self.createStatusbar()
-
+        
         # Layouts
         centralLayout = QVBoxLayout(centralWgt)
         centralLayout.addWidget(self.deviceType)
@@ -93,36 +95,51 @@ class Ui(QMainWindow):
 
         settingsLayout.addWidget(message_group)
         centralLayout.addLayout(settingsLayout)
-        centralLayout.addWidget(terminalWgt)
+        centralLayout.addWidget(le)
+        centralLayout.addWidget(terminal)
         centralLayout.addWidget(self.control)
 
         self._center()
 
         self.show()
 
-    def createTerminal(self):
-        wgt = QWidget()
+    def createTerminal(self):   
+        self.terminal = QListView() 
+        self.terminal.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.terminal.setSelectionMode(QAbstractItemView.NoSelection)
+        self.terminal.setFocusPolicy(QtCore.Qt.NoFocus)
 
-        self.terminal = terminal_output = QTextEdit()
-        terminal_output.setReadOnly(True)
-
-        def _clear():
-            self.terminal.clear()
+        model = QtCore.QStringListModel()
+        self.terminal.setModel(model)
+        
+        def _on_clear():
+            model.setStringList(tuple())
+            
+        def _on_append(item: str):
+            new_item = item
+            model.insertRow(model.rowCount())
+            index = model.index(model.rowCount()-1, 0)
+            model.setData(index, new_item)
+            self.terminal.scrollTo(index) 
 
         btn_clear = QPushButton('Очистить')
         btn_clear.setFixedWidth(60)
+        btn_clear.clicked.connect(_on_clear)
 
-        btn_clear.clicked.connect(_clear)
+        wgt = QWidget()
+        layout = QVBoxLayout(wgt)
+        layout.setContentsMargins(0,0,0,0)
+        layout.addWidget(self.terminal)
+        layout.addWidget(btn_clear)
 
-        term_layout = QVBoxLayout(wgt)
-        term_layout.addWidget(self.terminal)
-        term_layout.addWidget(btn_clear)
+        self._terminal_on_append = _on_append
 
         return wgt
 
     def createButtons(self):
         wgt = QWidget()
         layout = QHBoxLayout(wgt)
+        layout.setContentsMargins(0,0,0,0)
 
         self.buttons = {}
         for (name, key, enabled, action, icon) in (
@@ -133,8 +150,8 @@ class Ui(QMainWindow):
             button = QPushButton(name.capitalize())
             button.setEnabled(enabled)
             button.setFixedSize(80, 25)
-            button.setIcon(QIcon(icon))
-            button.setStyleSheet("text-align: left")
+            #button.setIcon(QIcon(icon))
+            button.setStyleSheet("text-align: center")
 
             layout.addWidget(button)
             layout.setSpacing(1)
@@ -143,6 +160,7 @@ class Ui(QMainWindow):
 
             button.clicked.connect(action)
             self.buttons[key] = button
+
         return wgt
 
     def createDeviceBox(self):
@@ -271,7 +289,8 @@ class Ui(QMainWindow):
 
         # show message to terminal
         msg_ascii = message.to_ascii()
-        self.terminal.append(msg_ascii)
+
+        self._terminal_on_append(msg_ascii)
 
         # update status
         self.blinkPixmap()

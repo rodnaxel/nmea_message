@@ -116,4 +116,4 @@ class HMRDorient(HMRSentences):
         return b''.join(data_bytes)
 
     def to_ascii(self):
-        pass
+        return self.to_bytes().hex(' ')

@@ -22,3 +22,6 @@ class SerialPort:
                            baudrate=self._settings['baudrate'],
                            timeout=0.1) as serobj:
             serobj.write(message)
+
+    def recieve(self):
+        raise NotImplementedError

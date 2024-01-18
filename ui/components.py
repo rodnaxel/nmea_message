@@ -1,8 +1,37 @@
 from PyQt5 import QtCore
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QWidget
+
+
+
+class Option(QWidget):
+    currentIndexChanged = pyqtSignal(int)
+
+    def __init__(self, parent: QWidget | None, title: str, items=None) -> None:
+        super().__init__(parent)
+
+        self.name = title
+        self.items = items or []
+
+        self._createUi()
+
+    def _createUi(self):
+        cb = QComboBox()
+        cb.setFixedWidth(120)
+        cb.addItems(self.items)
+        cb.currentIndexChanged['int'].connect(self.currentIndexChanged)
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0,0,1,1)
+        layout.addWidget(QLabel(f"{self.name}:"))
+        layout.addWidget(cb)
+
+
+        
+
+
 
 
 class OptionBox(QWidget):
@@ -10,9 +39,9 @@ class OptionBox(QWidget):
         super().__init__(parent)
 
         self._fields = fields
-        self._create_widget()
+        self._createUi()
 
-    def _create_widget(self):
+    def _createUi(self):
         self.setLayout(QGridLayout(self))
 
         row = 0 
@@ -94,5 +123,3 @@ class Terminal(QWidget):
         layout.setContentsMargins(0,0,0,0)
         layout.addWidget(self.listview)
         layout.addWidget(btn)
-
-    

@@ -10,12 +10,12 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 import ioserial
-from ui.components import OptionBox, Terminal
+from ui.components import OptionBox, Option, Terminal
 
 import model
 from message_desc import messages
 
-__title__ = "Генератор сообщений NMEA-0183"
+__title__ = "NMEA-0183"
 __version__ = "1.0.0"
 __author__ = "Александр Смирнов"
 
@@ -65,9 +65,19 @@ class Ui(QMainWindow):
         self.setCentralWidget(centralWgt)
 
         # Create widgets
-        self.control = self.createButtons()
-        self.deviceType = self.createDeviceBox()
+        self.deviceType = Option(
+            parent=None, 
+            title="Тип устройства",
+            items=(messages[name]["desc"] for name in self.message_names)
+        )
+
+        self.transmitDirection = Option(
+            parent=None,
+            title="Режим работы",
+            items=("Передача", "Прием")
+        )
         self.portbox = self.createPortbox()
+        self.control = self.createButtons()
 
         # Widget params of message
         message_group = QGroupBox("Параметры сообщения:", self)
@@ -86,6 +96,7 @@ class Ui(QMainWindow):
         # Layouts
         centralLayout = QVBoxLayout(centralWgt)
         centralLayout.addWidget(self.deviceType)
+        centralLayout.addWidget(self.transmitDirection)
         settingsLayout = QHBoxLayout()
         settingsLayout.addWidget(self.portbox)
 
@@ -98,6 +109,9 @@ class Ui(QMainWindow):
         centralLayout.addWidget(le)
         centralLayout.addWidget(terminal)
         centralLayout.addWidget(self.control)
+
+        # Connect signals/slots
+        self.deviceType.currentIndexChanged['int'].connect(self.on_change_device)
 
         self._center()
 
@@ -150,7 +164,6 @@ class Ui(QMainWindow):
             button = QPushButton(name.capitalize())
             button.setEnabled(enabled)
             button.setFixedSize(80, 25)
-            #button.setIcon(QIcon(icon))
             button.setStyleSheet("text-align: center")
 
             layout.addWidget(button)
@@ -160,25 +173,6 @@ class Ui(QMainWindow):
 
             button.clicked.connect(action)
             self.buttons[key] = button
-
-        return wgt
-
-    def createDeviceBox(self):
-        wgt = QWidget()
-        layout = QHBoxLayout(wgt)
-
-        self.deviceTypeBox = combo = QComboBox()
-        combo.setObjectName("deviceType")
-        combo.setFixedWidth(120)
-
-        keys = [messages[name]["desc"] for name in self.message_names]
-
-        combo.addItems(keys)
-
-        layout.addWidget(QLabel("Тип устройства: "))
-        layout.addWidget(combo)
-
-        combo.currentTextChanged['QString'].connect(self.on_change_device)
 
         return wgt
 
@@ -238,8 +232,9 @@ class Ui(QMainWindow):
 
         return wgt
 
+
     def createStatusbar(self):
-        pix = QLabel()
+        pix = QLabel("pix")
         self.statusBar().addPermanentWidget(pix)
         self.status['pixmap'] = pix
         self.updatePixmap('noconnect')
@@ -278,9 +273,6 @@ class Ui(QMainWindow):
             message = model.SonarMessage(data)
         elif mode == 2:
             message = model.HMRDorient(data)
-            print(data)
-            print(message.to_bytes())
-            return
 
         # send message to serial
         msg_bytes = message.to_bytes()
@@ -325,8 +317,7 @@ class Ui(QMainWindow):
     def updateStatus(self, key, value):
         self.status[key].setText(' {}: {}'.format('отп', value))
 
-    def on_change_device(self):
-        index = self.deviceTypeBox.currentIndex()
+    def on_change_device(self, index: int) -> None:
         self.stack.setCurrentIndex(index)
         self.mode = index
 

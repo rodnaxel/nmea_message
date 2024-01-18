@@ -22,6 +22,9 @@ class NMEASentences(BaseSentence):
         param_strings = ','.join(self.fields.values())
         self._message = self.START + param_strings + "*" + "{:02X}".format(checksum(param_strings)) + self.END
 
+    def _parse_message(self):
+        pass
+
     def to_bytes(self) -> bytes:
         return b''.join([char.encode() for char in self._message])
 

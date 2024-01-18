@@ -1,6 +1,4 @@
-from PyQt5 import QtCore
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtWidgets import QWidget
 
@@ -21,17 +19,14 @@ class Option(QWidget):
         cb = QComboBox()
         cb.setFixedWidth(120)
         cb.addItems(self.items)
-        cb.currentIndexChanged['int'].connect(self.currentIndexChanged)
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0,0,1,1)
         layout.addWidget(QLabel(f"{self.name}:"))
         layout.addWidget(cb)
 
-
-        
-
-
+        # Connect signal/slot
+        cb.currentIndexChanged['int'].connect(self.currentIndexChanged)
 
 
 class OptionBox(QWidget):

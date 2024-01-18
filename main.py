@@ -1,19 +1,19 @@
 # -*- coding: utf-8 -*-
 
+import logging
 import os.path
 import sys
-
-import logging
 
 from PyQt5 import QtCore
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 import ioserial
-from ui.components import OptionBox, Option, Terminal
-
 import model
 from message_desc import messages
+from ui.components import OptionBox, Option
+
+from ui import app_rc
 
 __title__ = "NMEA-0183"
 __version__ = "1.0.0"
@@ -118,7 +118,7 @@ class Ui(QMainWindow):
         self.show()
 
     def createTerminal(self):   
-        self.terminal = QListView() 
+        self.terminal = QListView(parent=None)
         self.terminal.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.terminal.setSelectionMode(QAbstractItemView.NoSelection)
         self.terminal.setFocusPolicy(QtCore.Qt.NoFocus)
@@ -164,6 +164,7 @@ class Ui(QMainWindow):
             button = QPushButton(name.capitalize())
             button.setEnabled(enabled)
             button.setFixedSize(80, 25)
+            button.setIcon(QIcon(icon))
             button.setStyleSheet("text-align: center")
 
             layout.addWidget(button)
@@ -200,7 +201,7 @@ class Ui(QMainWindow):
         for key, name, items in (
                 ('port', 'Порт', available_ports),
                 ('baudrate', 'скорость', ['4800', '9600', '19200', '38400', '57600', '115200']),
-                ('bytesize', 'биты данных', ['5', '6', '7', '8']),
+                ('bytesize', 'биты данных', ['8']),
                 ('parity', 'четность', ['N']),
                 ('stopbits', 'стоп', ['1', '1.5', '2']),
                 ('interval', 'темп, мс', ['1000'])
@@ -234,7 +235,11 @@ class Ui(QMainWindow):
 
 
     def createStatusbar(self):
-        pix = QLabel("pix")
+        counter = QLabel()
+        self.statusBar().addPermanentWidget(counter)
+        self.status['counter'] = counter
+
+        pix = QLabel()
         self.statusBar().addPermanentWidget(pix)
         self.status['pixmap'] = pix
         self.updatePixmap('noconnect')
@@ -246,6 +251,9 @@ class Ui(QMainWindow):
         self.transmitter.configure(stg)
 
         interval_ms = int(stg['interval'])
+
+        self.counter = 0
+
         self.timer_id = self.startTimer(interval_ms, timerType=QtCore.Qt.PreciseTimer)
 
     def _on_stop(self):
@@ -266,30 +274,31 @@ class Ui(QMainWindow):
     def timerEvent(self, event):
         data = self.get_message_settings()
 
-        mode = self.deviceTypeBox.currentIndex()
-        if mode == 0:
+        if self.mode == 0:
             message = model.CompassMessage(data)
-        elif mode == 1:
+        elif self.mode == 1:
             message = model.SonarMessage(data)
-        elif mode == 2:
+        elif self.mode == 2:
             message = model.HMRDorient(data)
 
         # send message to serial
         msg_bytes = message.to_bytes()
-
         self.transmitter.send(msg_bytes)
 
         # show message to terminal
         msg_ascii = message.to_ascii()
-
         self._terminal_on_append(msg_ascii)
 
         # update status
         self.blinkPixmap()
 
+        self.counter += 1
+        self.updateStatus("counter", self.counter)
+
     def _lock(self, is_lock):
         self.portbox.setDisabled(is_lock)
         self.deviceType.setDisabled(is_lock)
+        self.transmitDirection.setDisabled(is_lock)
         self.buttons['start'].setDisabled(is_lock)
         self.buttons['stop'].setEnabled(is_lock)
 
@@ -315,7 +324,7 @@ class Ui(QMainWindow):
         self.status['pixmap'].setToolTip(pixmaps[state]['description'])
 
     def updateStatus(self, key, value):
-        self.status[key].setText(' {}: {}'.format('отп', value))
+        self.status[key].setText(' {}: {}'.format('отправлено', value))
 
     def on_change_device(self, index: int) -> None:
         self.stack.setCurrentIndex(index)

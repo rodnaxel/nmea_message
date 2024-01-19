@@ -8,18 +8,18 @@ from PyQt5 import QtCore
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-import ioserial
-import model
-from message_desc import messages
 from ui.components import OptionBox, Option
-
 from ui import app_rc
+
+import ioserial
+from protocols import CompassMessage, SonarMessage, HMRDorient
+from message_desc import messages
 
 __title__ = "NMEA-0183"
 __version__ = "1.0.0"
 __author__ = "Александр Смирнов"
 
-PROJECT_DIR = os.path.dirname(os.path.realpath(__file__))
+ROOT = os.path.dirname(os.path.realpath(__file__))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,6 +29,14 @@ logging.basicConfig(
         logging.StreamHandler()
     ])
 logger = logging.getLogger()
+
+pixmaps = {
+    'noconnect': {'ico': ":/rc/network-offline.png", 'description': 'нет подключения'},
+    'idle': {'ico': ":/rc/network-idle.png", 'description': 'ожидание'},
+    'rx': {'ico': ":/rc/network-receive.png", 'description': 'прием'},
+    'tx': {'ico': ":/rc/network-transmit.png", 'description': 'передача'},
+    'error': {'ico': ":/rc/network-error.png", 'description': 'ошибка'}
+}
 
 
 class Ui(QMainWindow):
@@ -44,17 +52,12 @@ class Ui(QMainWindow):
         self.message_names = ["compass", "sonar", "sensor"]
         self.mode = 0
 
+        self.transceiver = ioserial.SerialPort()
+
         self.createUI()
 
-        self.transmitter = ioserial.SerialPort()
-
-    def _center(self):
-        """ This method aligned main window related center screen """
-        frameGm = self.frameGeometry()
-        screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
-        centerPoint = QApplication.desktop().screenGeometry(screen).center()
-        frameGm.moveCenter(centerPoint)
-        self.move(frameGm.topLeft())
+        # Connect signals/slots
+        self.deviceType.currentIndexChanged['int'].connect(self.on_change_device)
 
     def createUI(self):
         self.setWindowTitle("{0} (версия {1})".format(__title__, __version__))
@@ -109,9 +112,6 @@ class Ui(QMainWindow):
         centralLayout.addWidget(le)
         centralLayout.addWidget(terminal)
         centralLayout.addWidget(self.control)
-
-        # Connect signals/slots
-        self.deviceType.currentIndexChanged['int'].connect(self.on_change_device)
 
         self._center()
 
@@ -244,16 +244,23 @@ class Ui(QMainWindow):
         self.status['pixmap'] = pix
         self.updatePixmap('noconnect')
 
+    def _center(self):
+        """ This method aligned main window related center screen """
+        frameGm = self.frameGeometry()
+        screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
+        centerPoint = QApplication.desktop().screenGeometry(screen).center()
+        frameGm.moveCenter(centerPoint)
+        self.move(frameGm.topLeft())
+
     def _on_start(self):
         self._lock(True)
 
         stg = self.get_port_settings()
-        self.transmitter.configure(stg)
+        self.transceiver.configure(stg)
+
+        self.message_counter = 0
 
         interval_ms = int(stg['interval'])
-
-        self.counter = 0
-
         self.timer_id = self.startTimer(interval_ms, timerType=QtCore.Qt.PreciseTimer)
 
     def _on_stop(self):
@@ -275,15 +282,15 @@ class Ui(QMainWindow):
         data = self.get_message_settings()
 
         if self.mode == 0:
-            message = model.CompassMessage(data)
+            message = CompassMessage(data)
         elif self.mode == 1:
-            message = model.SonarMessage(data)
+            message = SonarMessage(data)
         elif self.mode == 2:
-            message = model.HMRDorient(data)
+            message = HMRDorient(data)
 
         # send message to serial
         msg_bytes = message.to_bytes()
-        self.transmitter.send(msg_bytes)
+        self.transceiver.send(msg_bytes)
 
         # show message to terminal
         msg_ascii = message.to_ascii()
@@ -292,8 +299,8 @@ class Ui(QMainWindow):
         # update status
         self.blinkPixmap()
 
-        self.counter += 1
-        self.updateStatus("counter", self.counter)
+        self.message_counter += 1
+        self.updateStatus("counter", self.message_counter)
 
     def _lock(self, is_lock):
         self.portbox.setDisabled(is_lock)
@@ -310,16 +317,7 @@ class Ui(QMainWindow):
             self.updatePixmap('rx')
             self.isBlink = True
 
-    def updatePixmap(self, state=None):
-        if not state:
-            state = "noconnect"
-        pixmaps = {
-            'noconnect': {'ico': ":/rc/network-offline.png", 'description': 'нет подключения'},
-            'idle': {'ico': ":/rc/network-idle.png", 'description': 'ожидание'},
-            'rx': {'ico': ":/rc/network-receive.png", 'description': 'прием'},
-            'tx': {'ico': ":/rc/network-transmit.png", 'description': 'передача'},
-            'error': {'ico': ":/rc/network-error.png", 'description': 'ошибка'}
-        }
+    def updatePixmap(self, state="noconnect"):
         self.status['pixmap'].setPixmap(QPixmap(pixmaps[state]['ico']))
         self.status['pixmap'].setToolTip(pixmaps[state]['description'])
 

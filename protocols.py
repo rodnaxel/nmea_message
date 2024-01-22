@@ -21,8 +21,8 @@ class NMEASentences(BaseSentence):
     def _create_message(self):
         param_strings = ','.join(self.fields.values())
         self._message = (
-
-                self.START + param_strings + "*" + "{:02X}".format(checksum(param_strings)) + self.END)
+                self.START + param_strings + "*" + "{:02X}".format(checksum(param_strings)) + self.END
+        )
 
     def _parse_message(self):
         pass

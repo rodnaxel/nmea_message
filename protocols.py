@@ -11,7 +11,7 @@ class BaseSentence(object):
         raise NotImplementedError
 
 
-class NMEASentences(BaseSentence):
+class NMEAMessage(BaseSentence):
     START = '$'
     END = '\r\n'
 
@@ -24,9 +24,6 @@ class NMEASentences(BaseSentence):
                 self.START + param_strings + "*" + "{:02X}".format(checksum(param_strings)) + self.END
         )
 
-    def _parse_message(self):
-        pass
-
     def to_bytes(self) -> bytes:
         return b''.join([char.encode() for char in self._message])
 
@@ -34,7 +31,7 @@ class NMEASentences(BaseSentence):
         return self._message.rstrip('\r\n') if without_end else self._message
 
 
-class SonarMessage(NMEASentences):
+class SonarMessage(NMEAMessage):
     """ Class described NMEA message from PUI to user/repiter """
     fields = dict.fromkeys(['id',
                             'field1', 'field2',
@@ -42,39 +39,35 @@ class SonarMessage(NMEASentences):
                             'danger', 'danger unit',
                             'accuracy'], '')
 
-    def __init__(self, data: dict):
-        # Delete unnecessary key from data dictionary
-        necessary_keys = self.fields.keys() & data.keys()
-        self._data = {key: data[key] for key in necessary_keys}
+    def __init__(self, input_data: dict) -> None:
+        self._data = input_data
+        self._format_input_data()
+        self.f
+        ields.update(self._data)
+        self._create_message()
 
-        # Formatting input data
+    def _format_input_data(self):
+        """ Formatting input data  """
         self._data['depth'] = str(round(self._data['depth'], 2)).zfill(6)
         self._data['depth unit'] = 'M'
-
         self._data['danger'] = str(round(self._data['danger'], 2)).zfill(2)
         self._data['danger unit'] = 'M'
 
-        self.fields.update(self._data)
 
-        self._create_message()
-
-
-class CompassMessage(NMEASentences):
+class CompassMessage(NMEAMessage):
     """ Class described NMEA message from compass to user/repiter """
     fields = dict.fromkeys(
         ('id', 'heading', 'power')
     )
 
-    def __init__(self, data):
-        # Delete unnecessary key from data dictionary
-        necessary_keys = self.fields.keys() & data.keys()
-        self._data = {key: data[key] for key in necessary_keys}
-
-        # Formatting input data
-        self._data['heading'] = str(round(self._data['heading'], 1)).zfill(5)
+    def __init__(self, input_data: dict) -> None:
+        self._data = input_data
+        self._format_input_data()
         self.fields.update(self._data)
-
         self._create_message()
+
+    def _format_input_data(self):
+        self._data['heading'] = str(round(self._data['heading'], 1)).zfill(5)
 
 
 def kang2dec(kang, signed=True):

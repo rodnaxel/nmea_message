@@ -42,8 +42,7 @@ class SonarMessage(NMEAMessage):
     def __init__(self, input_data: dict) -> None:
         self._data = input_data
         self._format_input_data()
-        self.f
-        ields.update(self._data)
+        self.fields.update(self._data)
         self._create_message()
 
     def _format_input_data(self):

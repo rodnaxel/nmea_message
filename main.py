@@ -52,7 +52,7 @@ class Ui(QMainWindow):
         self.message_names = ["compass", "sonar", "sensor"]
         self.mode = 0
 
-        self.transceiver = ioserial.SerialPort()
+        self.transceiver = ioserial.NmeaDriver()
 
         self.createUI()
 
@@ -256,17 +256,20 @@ class Ui(QMainWindow):
         self._lock(True)
 
         stg = self.get_port_settings()
-        self.transceiver.configure(stg)
+        interval_ms = stg.pop('interval', 1000)
+
+        self.transceiver.open(stg)
 
         self.message_counter = 0
 
-        interval_ms = int(stg['interval'])
+
         self.timer_id = self.startTimer(interval_ms, timerType=QtCore.Qt.PreciseTimer)
 
     def _on_stop(self):
         if self.timer_id:
             self.killTimer(self.timer_id)
             self.timer_id = 0
+        self.transceiver.close()
         self._lock(False)
         self.updatePixmap('idle')
 
@@ -289,8 +292,8 @@ class Ui(QMainWindow):
             message = HMRDorient(data)
 
         # send message to serial
-        msg_bytes = message.to_bytes()
-        self.transceiver.send(msg_bytes)
+        #msg_bytes = message.to_bytes()
+        self.transceiver.send(message.to_ascii())
 
         # show message to terminal
         msg_ascii = message.to_ascii()
